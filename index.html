@@ -80,11 +80,7 @@
 <div id="printHeader">
   <img src="三協アルミ_4C透過.png" alt="ロゴ" style="height:35px; vertical-align:middle; margin-right:10px;">
   <span style="font-size:18px; font-weight:bold;">DC24V 電圧降下計算ツール</span><br>
-  <small>
-    トランス電圧：DC24V　|　
-    電圧降下定数：0.00126　|　
-    許容降下：2.0V
-  </small><br>
+  <small id="printConditions"></small><br>
   <small id="printProjectInfo"></small>
 </div>
 
@@ -218,6 +214,9 @@
       `;
     });
 
+    const creator = document.getElementById("creator").value || "未入力";
+    const date = new Date().toLocaleDateString();
+
     let overallResult = "<h2>計算結果</h2>";
 
     overallResult += `<p><b>合計消費電力:</b> ${totalW.toFixed(2)} W</p>`;
@@ -234,7 +233,9 @@
   function preparePrint() {
     const project = document.getElementById("projectName").value || "未入力";
     const creator = document.getElementById("creator").value || "未入力";
-    document.getElementById("printProjectInfo").innerText = `物件名：${project}　|　作成担当者：${creator}  | 作成日: ${new Date().toLocaleDateString()} `;
+    const transformer = document.getElementById("transformer").value;
+    document.getElementById("printConditions").innerText = `トランス電圧：DC24V　|　電圧降下定数：0.00126　|　許容降下：2.0V　|　トランス容量：${transformer}W`;
+    document.getElementById("printProjectInfo").innerText = `物件名：${project}　|　作成担当者：${creator}  |　作成日: ${new Date().toLocaleDateString()}`;
     window.print();
   }
 </script>
