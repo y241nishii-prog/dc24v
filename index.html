@@ -24,7 +24,6 @@
   th { background: #eee; }
   .warning { color: red; font-weight: bold; }
 
-  /* ボタンデザイン */
   button { padding: 6px 10px; border: none; color: white; border-radius: 6px; cursor: pointer; margin: 4px; }
   .add-btn { background-color: #007bff; }
   .remove-btn { background-color: #dc3545; }
@@ -34,15 +33,10 @@
 
   footer { position: fixed; bottom: 10px; right: 20px; font-size: 12px; color: #555; }
 
-  /* 印刷設定 */
   @page { size: A4 portrait; margin: 15mm; }
   @media print {
     body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-
-    /* 入力欄・ボタン・通常ヘッダーを非表示 */
     button, header, #circuits, #conditions, #projectInfo { display: none !important; }
-
-    /* 印刷用ヘッダー固定 */
     #printHeader {
       display: block !important;
       position: fixed; 
@@ -53,30 +47,24 @@
       border-bottom: 2px solid #ccc;
       padding: 5px 15px;
     }
-
-    #result { margin-top: 130px; } /* ヘッダー分の余白 */
+    #result { margin-top: 130px; }
   }
-
-  /* 画面表示時は印刷ヘッダーを非表示 */
   #printHeader { display: none; }
 </style>
 </head>
 <body>
 
-<!-- 通常画面ヘッダー -->
 <header>
   <img src="三協アルミ_4C透過.png" alt="ロゴ">
   <h1>DC24V 電圧降下計算ツール</h1>
 </header>
 
-<!-- 物件情報入力 -->
 <div id="projectInfo">
   <strong>■ 物件情報</strong><br>
   物件名：<input type="text" id="projectName" placeholder="例：○○邸 外構照明計画"><br>
   作成担当者：<input type="text" id="creator" placeholder="例：三協 太郎">
 </div>
 
-<!-- 条件設定 -->
 <div id="conditions">
   <strong>■ 条件設定</strong><br>
   トランス電圧：<b>DC24V</b>　
@@ -89,7 +77,6 @@
   </select>
 </div>
 
-<!-- 印刷専用ヘッダー -->
 <div id="printHeader">
   <img src="三協アルミ_4C透過.png" alt="ロゴ" style="height:35px; vertical-align:middle; margin-right:10px;">
   <span style="font-size:18px; font-weight:bold;">DC24V 電圧降下計算ツール</span><br>
@@ -113,8 +100,6 @@
 </div>
 
 <div id="result"></div>
-
-</footer>
 
 <script>
   const DROP_PER_M = 0.00126;
@@ -191,7 +176,7 @@
 
   function calc() {
     let totalW = 0;
-    let resultHtml = "<h2>計算結果</h2>";
+    let lineResults = "";
 
     const transformer = parseFloat(document.getElementById("transformer").value);
     const circuits = document.querySelectorAll(".circuit");
@@ -222,7 +207,7 @@
       });
 
       totalW += circuitW;
-      resultHtml += `
+      lineResults += `
         <h3>ライン ${cIdx + 1}</h3>
         <table>
           <tr><th>番号</th><th>名称</th><th>W数</th><th>長さ(m)</th><th>電圧降下(V)</th></tr>
@@ -233,24 +218,25 @@
       `;
     });
 
-    let warningMsg = "";
+    let overallResult = "<h2>計算結果</h2>";
+
+    overallResult += `<p><b>合計消費電力:</b> ${totalW.toFixed(2)} W</p>`;
+
     if (totalW > transformer) {
-      warningMsg = `<p class="warning">⚠ トランス容量（${transformer}W）を超えています！</p>`;
+      overallResult += `<p class="warning">⚠ トランス容量（${transformer}W）を超えています！</p>`;
     }
 
-    resultHtml += `<hr><p><b>全体合計消費電力:</b> ${totalW.toFixed(2)} W</p>${warningMsg}`;
-    resultHtml += `<p>作成日: ${new Date().toLocaleDateString()}</p>`;
-    document.getElementById("result").innerHTML = resultHtml;
+    overallResult += "<hr>";
+
+    document.getElementById("result").innerHTML = overallResult + lineResults;
   }
 
   function preparePrint() {
     const project = document.getElementById("projectName").value || "未入力";
     const creator = document.getElementById("creator").value || "未入力";
-    document.getElementById("printProjectInfo").innerText = `物件名：${project}　|　作成担当者：${creator}`;
+    document.getElementById("printProjectInfo").innerText = `物件名：${project}　|　作成担当者：${creator}  | 作成日: ${new Date().toLocaleDateString()} `;
     window.print();
   }
-
-  document.getElementById("today").textContent = new Date().toLocaleDateString();
 </script>
 
 </body>
