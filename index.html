@@ -19,7 +19,7 @@
 
   input[type=text] { width: 200px; margin-left: 10px; }
 
-  table { border-collapse: collapse; width: 100%; margin: 15px 0; background: #fff; }
+  table { border-collapse: collapse; width: 100%; margin: 10px 0; background: #fff; }
   th, td { border: 1px solid #ccc; padding: 6px; text-align: left; font-size: 13px; }
   th { background: #eee; }
   .warning { color: red; font-weight: bold; }
@@ -31,11 +31,8 @@
   .print-btn { background-color: #6c757d; }
   button:hover { opacity: 0.85; }
 
-  footer { position: fixed; bottom: 10px; right: 20px; font-size: 12px; color: #555; }
-
   @page { size: A4 portrait; margin: 15mm; }
   @media print {
-    body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     button, header, #circuits, #conditions, #projectInfo { display: none !important; }
     #printHeader {
       display: block !important;
@@ -100,6 +97,7 @@
 <script>
   const DROP_PER_M = 0.00126;
   const MAX_CIRCUITS = 4;
+  const MAX_BRANCHES = 4;
   const circuitsDiv = document.getElementById("circuits");
 
   function addCircuit() {
@@ -113,19 +111,8 @@
       <h2>ライン ${circuitsDiv.children.length + 1}
         <button class="remove-btn" onclick="removeCircuit(this)">ライン削除</button>
       </h2>
-      <table>
-        <thead>
-          <tr>
-            <th>番号</th>
-            <th>名称・記号</th>
-            <th>消費電力(W)</th>
-            <th>コード長さ(m)</th>
-            <th>操作</th>
-          </tr>
-        </thead>
-        <tbody></tbody>
-      </table>
-      <button class="add-btn" onclick="addLamp(this)">＋ 照明追加</button>
+      <div class="branches"></div>
+      <button class="add-btn" onclick="addBranch(this)">＋ 分岐追加</button>
     `;
     circuitsDiv.appendChild(wrapper);
     updateCircuitNumbers();
@@ -134,6 +121,54 @@
   function removeCircuit(btn) {
     btn.closest(".circuit").remove();
     updateCircuitNumbers();
+  }
+
+  function updateCircuitNumbers() {
+    document.querySelectorAll(".circuit").forEach((c, idx) => {
+      c.querySelector("h2").innerHTML = `ライン ${idx + 1}
+        <button class='remove-btn' onclick='removeCircuit(this)'>ライン削除</button>`;
+    });
+  }
+
+  function addBranch(btn) {
+    const branchesDiv = btn.parentNode.querySelector(".branches");
+    const circuitIndex = Array.from(circuitsDiv.children).indexOf(btn.closest(".circuit")) + 1;
+
+    if (branchesDiv.children.length >= MAX_BRANCHES) {
+      alert("分岐は最大4つまでです。");
+      return;
+    }
+
+    const branchWrapper = document.createElement("div");
+    branchWrapper.className = "branch";
+    branchWrapper.innerHTML = `
+      <h3>分岐 ${circuitIndex}-${branchesDiv.children.length + 1}
+        <button class="remove-btn" onclick="removeBranch(this)">分岐削除</button>
+      </h3>
+      <table>
+        <thead>
+          <tr><th>番号</th><th>名称・記号</th><th>消費電力(W)</th><th>コード長さ(m)</th><th>操作</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+      <button class="add-btn" onclick="addLamp(this)">＋ 照明追加</button>
+    `;
+    branchesDiv.appendChild(branchWrapper);
+    updateBranchNumbers(branchesDiv, circuitIndex);
+  }
+
+  function removeBranch(btn) {
+    const branchesDiv = btn.closest(".branches");
+    const circuitIndex = Array.from(circuitsDiv.children).indexOf(btn.closest(".circuit")) + 1;
+    btn.closest(".branch").remove();
+    updateBranchNumbers(branchesDiv, circuitIndex);
+  }
+
+  function updateBranchNumbers(branchesDiv, circuitIndex) {
+    branchesDiv.querySelectorAll(".branch").forEach((b, idx) => {
+      b.querySelector("h3").innerHTML = `分岐 ${circuitIndex}-${idx + 1}
+        <button class='remove-btn' onclick='removeBranch(this)'>分岐削除</button>`;
+    });
   }
 
   function addLamp(btn) {
@@ -156,14 +191,6 @@
     updateLampNumbers(tbody);
   }
 
-  function updateCircuitNumbers() {
-    const circuits = document.querySelectorAll(".circuit");
-    circuits.forEach((c, idx) => {
-      c.querySelector("h2").innerHTML = `ライン ${idx + 1}
-        <button class="remove-btn" onclick="removeCircuit(this)">ライン削除</button>`;
-    });
-  }
-
   function updateLampNumbers(tbody) {
     tbody.querySelectorAll("tr").forEach((tr, i) => {
       tr.children[0].textContent = i + 1;
@@ -171,61 +198,59 @@
   }
 
   function calc() {
+    const transformer = parseFloat(document.getElementById("transformer").value);
     let totalW = 0;
     let lineResults = "";
+    let overallResult = "<h2>計算結果</h2>";
 
-    const transformer = parseFloat(document.getElementById("transformer").value);
     const circuits = document.querySelectorAll(".circuit");
 
     circuits.forEach((c, cIdx) => {
       let circuitW = 0;
-      let circuitDrop = 0;
-      let rowsHtml = "";
-      const rows = c.querySelectorAll("tbody tr");
+      let circuitHtml = `<h3>ライン ${cIdx + 1}</h3>`;
+      const branches = c.querySelectorAll(".branch");
 
-      rows.forEach((r, idx) => {
-        const name = r.querySelector(".name").value || "-";
-        const w = parseFloat(r.querySelector(".watt").value) || 0;
-        const len = parseFloat(r.querySelector(".len").value) || 0;
-        const drop = w * len * DROP_PER_M;
+      branches.forEach((b, bIdx) => {
+        let branchW = 0;
+        let branchDrop = 0;
+        let branchRows = "";
+        const rows = b.querySelectorAll("tbody tr");
 
-        circuitW += w;
-        circuitDrop += drop;
+        rows.forEach((r, idx) => {
+          const name = r.querySelector(".name").value || "-";
+          const w = parseFloat(r.querySelector(".watt").value) || 0;
+          const len = parseFloat(r.querySelector(".len").value) || 0;
+          const drop = w * len * DROP_PER_M;
+          branchW += w;
+          branchDrop += drop;
+          branchRows += `
+            <tr><td>${idx + 1}</td><td>${name}</td><td>${w.toFixed(2)}</td><td>${len.toFixed(1)}</td><td>${drop.toFixed(2)}</td></tr>`;
+        });
 
-        rowsHtml += `
-          <tr>
-            <td>${idx + 1}</td>
-            <td>${name}</td>
-            <td>${w.toFixed(2)}</td>
-            <td>${len.toFixed(1)}</td>
-            <td ${drop > 2 ? 'class="warning"' : ''}>${drop.toFixed(2)}</td>
-          </tr>`;
+        circuitW += branchW;
+        circuitHtml += `
+          <h4>分岐 ${cIdx + 1}-${bIdx + 1}</h4>
+          <table>
+            <tr><th>番号</th><th>品名・名称</th><th>W数</th><th>コード長さ(m)</th><th>電圧降下(V)</th></tr>
+            ${branchRows}
+          </table>
+          <p><b>分岐 ${cIdx + 1}-${bIdx + 1} 小計:</b> ${branchW.toFixed(2)} W, 電圧降下 ${branchDrop.toFixed(2)} V</p>
+        `;
       });
 
       totalW += circuitW;
-      lineResults += `
-        <h3>ライン ${cIdx + 1}</h3>
-        <table>
-          <tr><th>番号</th><th>名称</th><th>W数</th><th>長さ(m)</th><th>電圧降下(V)</th></tr>
-          ${rowsHtml}
-        </table>
-        <p><b>ライン${cIdx + 1} 小計:</b> ${circuitW.toFixed(2)} W, 電圧降下合計 ${circuitDrop.toFixed(2)} V</p>
-        ${circuitDrop > 2 ? `<p class="warning">⚠ 電圧降下が許容範囲を超えています。</p>` : ""}
-      `;
+      circuitHtml += `<p><b>ライン${cIdx + 1} 小計:</b> ${circuitW.toFixed(2)} W</p><hr>`;
+      lineResults += circuitHtml;
     });
 
-    const creator = document.getElementById("creator").value || "未入力";
-    const date = new Date().toLocaleDateString();
-
-    let overallResult = "<h2>計算結果</h2>";
-
     overallResult += `<p><b>合計消費電力:</b> ${totalW.toFixed(2)} W</p>`;
-
     if (totalW > transformer) {
       overallResult += `<p class="warning">⚠ トランス容量（${transformer}W）を超えています！</p>`;
     }
 
-    overallResult += "<hr>";
+    const creator = document.getElementById("creator").value || "未入力";
+    const date = new Date().toLocaleDateString();
+    
 
     document.getElementById("result").innerHTML = overallResult + lineResults;
   }
@@ -234,11 +259,12 @@
     const project = document.getElementById("projectName").value || "未入力";
     const creator = document.getElementById("creator").value || "未入力";
     const transformer = document.getElementById("transformer").value;
-    document.getElementById("printConditions").innerText = `トランス電圧：DC24V　|　電圧降下定数：0.00126　|　許容降下：2.0V　|　トランス容量：${transformer}W`;
-    document.getElementById("printProjectInfo").innerText = `物件名：${project}　|　作成担当者：${creator}  |　作成日: ${new Date().toLocaleDateString()}`;
+    document.getElementById("printConditions").innerText =
+      `トランス電圧：DC24V　|　電圧降下定数：0.00126　|　許容電圧降下：2.0V　|　トランス容量：${transformer}W`;
+    document.getElementById("printProjectInfo").innerText =
+      `物件名：${project}　|　作成担当者：${creator}  |　作成日: ${new Date().toLocaleDateString()}`;
     window.print();
   }
 </script>
-
 </body>
 </html>
